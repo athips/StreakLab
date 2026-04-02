@@ -1,0 +1,14 @@
+{
+  "name": "streaklab-server",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch index.js",
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "get-port": "^7.2.0"
+  }
+}

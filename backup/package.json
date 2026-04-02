@@ -1,0 +1,13 @@
+{
+  "name": "streaklab",
+  "private": true,
+  "description": "StreakLab — habits, focus, energy insights (React + Tailwind + Node API; PostgreSQL-ready)",
+  "scripts": {
+    "dev": "concurrently -n client,api -c cyan,magenta \"npm run dev --prefix client\" \"npm run dev --prefix server\"",
+    "build": "npm run build --prefix client",
+    "start:server": "npm run start --prefix server"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
