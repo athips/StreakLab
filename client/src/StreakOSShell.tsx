@@ -180,6 +180,49 @@ export function StreakOSShell() {
           </div>
         </main>
       </div>
+
+      <nav className="mnav" aria-label="Primary">
+        <button
+          type="button"
+          className={`mnav-btn ${screen === 'dashboard' ? 'active' : ''}`}
+          onClick={() => go('dashboard')}
+        >
+          <span className="mnav-ico">○</span>
+          <span className="mnav-lbl">Home</span>
+        </button>
+        <button
+          type="button"
+          className={`mnav-btn ${screen === 'habits' ? 'active' : ''}`}
+          onClick={() => go('habits')}
+        >
+          <span className="mnav-ico">◎</span>
+          <span className="mnav-lbl">Habits</span>
+        </button>
+        <button
+          type="button"
+          className={`mnav-btn ${screen === 'focus' ? 'active' : ''}`}
+          onClick={() => go('focus')}
+        >
+          <span className="mnav-ico">◷</span>
+          <span className="mnav-lbl">Focus</span>
+        </button>
+        <button
+          type="button"
+          className={`mnav-btn ${screen === 'mood' ? 'active' : ''}`}
+          onClick={() => go('mood')}
+        >
+          <span className="mnav-ico">◑</span>
+          <span className="mnav-lbl">Mood</span>
+        </button>
+        <button
+          type="button"
+          className={`mnav-btn ${screen === 'profile' ? 'active' : ''}`}
+          onClick={() => go('profile')}
+        >
+          <span className="mnav-ico">◉</span>
+          <span className="mnav-lbl">Me</span>
+        </button>
+      </nav>
     </>
   )
 }
