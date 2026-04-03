@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { HABITS } from './constants'
 import { calcLevel } from './lib/calc'
 import { useStreak } from './context/StreakContext'
@@ -12,38 +12,70 @@ import { Mood } from './screens/Mood'
 import { Energy } from './screens/Energy'
 import { Review } from './screens/Review'
 import { Profile } from './screens/Profile'
+import { ReadingList } from './screens/ReadingList'
+import { SideProjects } from './screens/SideProjects'
+import { SkillRoadmap } from './screens/SkillRoadmap'
+
+const PAGE_TITLES: Record<ScreenId, string> = {
+  dashboard: 'Dashboard',
+  habits: 'Habits',
+  morning: 'Morning routine',
+  focus: 'Focus timer',
+  mood: 'Mood log',
+  energy: 'Energy insights',
+  review: 'Weekly review',
+  profile: 'Profile',
+  reading: 'Reading list',
+  projects: 'Side projects',
+  skills: 'Skill roadmap',
+}
+
+/** Screens shown in the mobile “More” sheet (not in the 5-slot bar). */
+const MORE_SCREENS: ScreenId[] = ['morning', 'mood', 'energy', 'review', 'reading', 'projects', 'skills']
 
 export function StreakOSShell() {
   const { state } = useStreak()
   const [screen, setScreen] = useState<ScreenId>('dashboard')
+  const [moreOpen, setMoreOpen] = useState(false)
   const showOnboarding = !state.profile?.name
 
   const allHabits = [...HABITS, ...state.customHabits]
   const showRescue = state.settings.rescue && state.checkedHabits.length === 0 && !state.rescueDismissed
+  const readingActive = state.books.filter((b) => b.status === 'reading').length
 
   const lv = calcLevel(state.totalXP)
   const avatar = state.profile.name ? state.profile.name[0].toUpperCase() : '?'
 
-  const pageTitle =
-    screen === 'dashboard'
-      ? 'Dashboard'
-      : screen === 'habits'
-        ? 'Habits'
-        : screen === 'morning'
-          ? 'Morning'
-          : screen === 'focus'
-            ? 'Focus'
-              : screen === 'mood'
-                ? 'Mood log'
-            : screen === 'energy'
-              ? 'Energy'
-              : screen === 'review'
-                ? 'Review'
-                : 'Profile'
+  const pageTitle = PAGE_TITLES[screen]
+  const moreHighlighted = MORE_SCREENS.includes(screen) || moreOpen
 
   function go(id: ScreenId) {
     setScreen(id)
+    setMoreOpen(false)
   }
+
+  function goFromMore(id: ScreenId) {
+    setScreen(id)
+    setMoreOpen(false)
+  }
+
+  useEffect(() => {
+    if (!moreOpen) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMoreOpen(false)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [moreOpen])
+
+  useEffect(() => {
+    if (!moreOpen) return
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = prev
+    }
+  }, [moreOpen])
 
   function renderScreen() {
     switch (screen) {
@@ -63,6 +95,12 @@ export function StreakOSShell() {
         return <Review />
       case 'profile':
         return <Profile onGoReview={() => go('review')} />
+      case 'reading':
+        return <ReadingList />
+      case 'projects':
+        return <SideProjects />
+      case 'skills':
+        return <SkillRoadmap />
       default:
         return null
     }
@@ -87,7 +125,7 @@ export function StreakOSShell() {
             <div className="logo-mark">S</div>
             <div>
               <div className="logo-name">StreakOS</div>
-              <div className="logo-ver">v4.0</div>
+              <div className="logo-ver">v4.1</div>
             </div>
           </div>
 
@@ -130,6 +168,24 @@ export function StreakOSShell() {
             <div className={`nav-item ${screen === 'review' ? 'active' : ''}`} onClick={() => go('review')}>
               <span className="nav-icon">◻</span>
               <span className="nav-label">Review</span>
+            </div>
+
+            <div className="nav-sec">Dev</div>
+            <div className={`nav-item ${screen === 'reading' ? 'active' : ''}`} onClick={() => go('reading')}>
+              <span className="nav-icon">◫</span>
+              <span className="nav-label">Reading</span>
+              <span className="nav-badge">{readingActive}</span>
+            </div>
+            <div className={`nav-item ${screen === 'projects' ? 'active' : ''}`} onClick={() => go('projects')}>
+              <span className="nav-icon">◧</span>
+              <span className="nav-label">Projects</span>
+              <span className="nav-badge">
+                {state.projects.filter((p) => p.status === 'building').length}
+              </span>
+            </div>
+            <div className={`nav-item ${screen === 'skills' ? 'active' : ''}`} onClick={() => go('skills')}>
+              <span className="nav-icon">◬</span>
+              <span className="nav-label">Skills</span>
             </div>
           </nav>
 
@@ -181,6 +237,87 @@ export function StreakOSShell() {
         </main>
       </div>
 
+      {moreOpen ? (
+        <>
+          <button
+            type="button"
+            className="mnav-backdrop"
+            aria-label="Close menu"
+            onClick={() => setMoreOpen(false)}
+          />
+          <div className="mnav-sheet" role="dialog" aria-modal="true" aria-label="More destinations">
+            <div className="mnav-sheet-handle" aria-hidden />
+            <div className="mnav-sheet-sec">Daily</div>
+            <button
+              type="button"
+              className={`mnav-sheet-item ${screen === 'morning' ? 'active' : ''}`}
+              onClick={() => goFromMore('morning')}
+            >
+              <span className="mnav-sheet-ico">◐</span>
+              <span className="mnav-sheet-txt">Morning</span>
+            </button>
+            <button
+              type="button"
+              className={`mnav-sheet-item ${screen === 'mood' ? 'active' : ''}`}
+              onClick={() => goFromMore('mood')}
+            >
+              <span className="mnav-sheet-ico">◑</span>
+              <span className="mnav-sheet-txt">Mood</span>
+            </button>
+            <div className="mnav-sheet-sec">Insights</div>
+            <button
+              type="button"
+              className={`mnav-sheet-item ${screen === 'energy' ? 'active' : ''}`}
+              onClick={() => goFromMore('energy')}
+            >
+              <span className="mnav-sheet-ico">◈</span>
+              <span className="mnav-sheet-txt">Energy</span>
+            </button>
+            <button
+              type="button"
+              className={`mnav-sheet-item ${screen === 'review' ? 'active' : ''}`}
+              onClick={() => goFromMore('review')}
+            >
+              <span className="mnav-sheet-ico">◻</span>
+              <span className="mnav-sheet-txt">Review</span>
+            </button>
+            <div className="mnav-sheet-sec">Dev</div>
+            <button
+              type="button"
+              className={`mnav-sheet-item ${screen === 'reading' ? 'active' : ''}`}
+              onClick={() => goFromMore('reading')}
+            >
+              <span className="mnav-sheet-ico">◫</span>
+              <span className="mnav-sheet-txt">Reading</span>
+              {readingActive > 0 ? (
+                <span className="mnav-sheet-badge">{readingActive}</span>
+              ) : null}
+            </button>
+            <button
+              type="button"
+              className={`mnav-sheet-item ${screen === 'projects' ? 'active' : ''}`}
+              onClick={() => goFromMore('projects')}
+            >
+              <span className="mnav-sheet-ico">◧</span>
+              <span className="mnav-sheet-txt">Projects</span>
+              {state.projects.filter((p) => p.status === 'building').length > 0 ? (
+                <span className="mnav-sheet-badge">
+                  {state.projects.filter((p) => p.status === 'building').length}
+                </span>
+              ) : null}
+            </button>
+            <button
+              type="button"
+              className={`mnav-sheet-item ${screen === 'skills' ? 'active' : ''}`}
+              onClick={() => goFromMore('skills')}
+            >
+              <span className="mnav-sheet-ico">◬</span>
+              <span className="mnav-sheet-txt">Skills</span>
+            </button>
+          </div>
+        </>
+      ) : null}
+
       <nav className="mnav" aria-label="Primary">
         <button
           type="button"
@@ -208,11 +345,13 @@ export function StreakOSShell() {
         </button>
         <button
           type="button"
-          className={`mnav-btn ${screen === 'mood' ? 'active' : ''}`}
-          onClick={() => go('mood')}
+          className={`mnav-btn mnav-btn-more ${moreHighlighted ? 'active' : ''}`}
+          aria-expanded={moreOpen}
+          aria-haspopup="dialog"
+          onClick={() => setMoreOpen((o) => !o)}
         >
-          <span className="mnav-ico">◑</span>
-          <span className="mnav-lbl">Mood</span>
+          <span className="mnav-ico">{moreOpen ? '▾' : '▸'}</span>
+          <span className="mnav-lbl">More</span>
         </button>
         <button
           type="button"

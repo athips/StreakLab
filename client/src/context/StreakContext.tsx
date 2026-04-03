@@ -8,8 +8,21 @@ import {
   useState,
   type ReactNode,
 } from 'react'
+import {
+  SAMPLE_BOOKS,
+  SAMPLE_PROJECTS,
+  SAMPLE_SKILLS,
+  levelFromMilestoneProgress,
+} from '../devNativeData'
 import { HABITS, ROUTINE, STORAGE_KEY } from '../constants'
-import type { AppState, ReviewEntry, SessionEntry } from '../types'
+import type {
+  AppState,
+  ReadingBook,
+  ReviewEntry,
+  SessionEntry,
+  SideProject,
+  SkillRoadmapItem,
+} from '../types'
 
 const defaultState = (): AppState => ({
   checkedHabits: [],
@@ -30,14 +43,40 @@ const defaultState = (): AppState => ({
   rescueDone: [],
   rescueDismissed: false,
   lastDate: '',
+  books: [],
+  projects: [],
+  skills: [],
+  skillXP: 0,
 })
+
+function ensureDevSamples(s: AppState): AppState {
+  return {
+    ...s,
+    books: !s.books?.length ? [...SAMPLE_BOOKS] : s.books,
+    projects: !s.projects?.length ? [...SAMPLE_PROJECTS] : s.projects,
+    skills: !s.skills?.length ? [...SAMPLE_SKILLS] : s.skills,
+    skillXP: s.skillXP ?? 0,
+  }
+}
+
+function syncSkillProgress(sk: SkillRoadmapItem): SkillRoadmapItem {
+  const ms = sk.milestones || []
+  const donePct = ms.length
+    ? Math.round((ms.filter((m) => m.done).length / ms.length) * 100)
+    : 0
+  return {
+    ...sk,
+    progress: donePct,
+    level: levelFromMilestoneProgress(donePct),
+  }
+}
 
 function loadState(): AppState {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return defaultState()
+    if (!raw) return ensureDevSamples(defaultState())
     const d = JSON.parse(raw) as AppState
-    const merged = { ...defaultState(), ...d }
+    const merged = ensureDevSamples({ ...defaultState(), ...d })
     const today = new Date().toDateString()
     if (merged.lastDate && merged.lastDate !== today) {
       merged.checkedHabits = []
@@ -54,7 +93,7 @@ function loadState(): AppState {
     merged.lastDate = today
     return merged
   } catch {
-    return defaultState()
+    return ensureDevSamples(defaultState())
   }
 }
 
@@ -82,6 +121,16 @@ type StreakContextValue = {
   dismissRescue: () => void
   resetAll: () => void
   exportJson: () => void
+  saveBook: (book: ReadingBook, editingId: string | null) => void
+  deleteBook: (id: string) => void
+  logBookPages: (id: string, pages: number) => void
+  startReadingBook: (id: string) => void
+  finishBook: (id: string) => void
+  saveProject: (project: SideProject, editingId: string | null) => void
+  logProjectSession: (id: string, hours: number, progressPct: number) => void
+  saveSkill: (skill: SkillRoadmapItem, editingId: string | null) => void
+  toggleSkillMilestone: (skillId: string, msId: string) => void
+  logSkillStudy: (id: string, hours: number) => void
 }
 
 const StreakContext = createContext<StreakContextValue | null>(null)
@@ -199,7 +248,7 @@ export function StreakProvider({ children }: { children: ReactNode }) {
 
   const resetAll = useCallback(() => {
     localStorage.removeItem(STORAGE_KEY)
-    setState(defaultState())
+    setState(ensureDevSamples(defaultState()))
   }, [])
 
   const exportJson = useCallback(() => {
@@ -211,6 +260,170 @@ export function StreakProvider({ children }: { children: ReactNode }) {
     a.click()
     URL.revokeObjectURL(u)
   }, [state])
+
+  const saveBook = useCallback((book: ReadingBook, editingId: string | null) => {
+    setState((prev) => {
+      if (editingId) {
+        const idx = prev.books.findIndex((b) => b.id === editingId)
+        if (idx < 0) return prev
+        const next = [...prev.books]
+        const prevB = prev.books[idx]
+        next[idx] = { ...book, color: book.color || prevB.color }
+        return { ...prev, books: next }
+      }
+      return { ...prev, books: [...prev.books, book] }
+    })
+  }, [])
+
+  const deleteBook = useCallback((id: string) => {
+    setState((prev) => ({ ...prev, books: prev.books.filter((b) => b.id !== id) }))
+  }, [])
+
+  const logBookPages = useCallback((id: string, pages: number) => {
+    if (pages <= 0 || Number.isNaN(pages)) return
+    setState((prev) => {
+      const books = prev.books.map((b) => {
+        if (b.id !== id) return b
+        let pagesRead = (b.pagesRead || 0) + pages
+        if (b.pages && pagesRead > b.pages) pagesRead = b.pages
+        return {
+          ...b,
+          pagesRead,
+          lastRead: new Date().toISOString(),
+        }
+      })
+      return { ...prev, books, totalXP: prev.totalXP + 5 }
+    })
+  }, [])
+
+  const startReadingBook = useCallback((id: string) => {
+    setState((prev) => ({
+      ...prev,
+      books: prev.books.map((b) =>
+        b.id === id
+          ? { ...b, status: 'reading' as const, startedAt: new Date().toISOString() }
+          : b,
+      ),
+    }))
+  }, [])
+
+  const finishBook = useCallback((id: string) => {
+    setState((prev) => {
+      const books = prev.books.map((b) => {
+        if (b.id !== id) return b
+        return {
+          ...b,
+          status: 'done' as const,
+          finishedAt: new Date().toISOString(),
+          pagesRead: b.pages || b.pagesRead,
+        }
+      })
+      return { ...prev, books, totalXP: prev.totalXP + 50 }
+    })
+  }, [])
+
+  const saveProject = useCallback((project: SideProject, editingId: string | null) => {
+    setState((prev) => {
+      if (editingId) {
+        const idx = prev.projects.findIndex((p) => p.id === editingId)
+        if (idx < 0) return prev
+        const next = [...prev.projects]
+        const old = prev.projects[idx]
+        next[idx] = {
+          ...project,
+          hours: old.hours,
+          progress: old.progress,
+          sessions: old.sessions,
+          lastWorked: old.lastWorked,
+        }
+        return { ...prev, projects: next }
+      }
+      return { ...prev, projects: [...prev.projects, project] }
+    })
+  }, [])
+
+  const logProjectSession = useCallback((id: string, hours: number, progressPct: number) => {
+    if (hours <= 0 || Number.isNaN(hours)) return
+    const xpGain = Math.round(hours * 10)
+    setState((prev) => {
+      const projects = prev.projects.map((p) => {
+        if (p.id !== id) return p
+        const progress = Number.isFinite(progressPct) ? Math.min(100, Math.max(0, progressPct)) : p.progress
+        let status = p.status
+        if (progress >= 100) status = 'shipped'
+        return {
+          ...p,
+          hours: (p.hours || 0) + hours,
+          progress,
+          status,
+          lastWorked: new Date().toISOString(),
+        }
+      })
+      return { ...prev, projects, totalXP: prev.totalXP + xpGain }
+    })
+  }, [])
+
+  const saveSkill = useCallback((skill: SkillRoadmapItem, editingId: string | null) => {
+    setState((prev) => {
+      const synced = syncSkillProgress(skill)
+      if (editingId) {
+        const idx = prev.skills.findIndex((s) => s.id === editingId)
+        if (idx < 0) return prev
+        const next = [...prev.skills]
+        const old = prev.skills[idx]
+        next[idx] = {
+          ...synced,
+          hours: old.hours,
+          sessions: old.sessions,
+          lastStudied: old.lastStudied,
+        }
+        return { ...prev, skills: next }
+      }
+      return { ...prev, skills: [...prev.skills, synced] }
+    })
+  }, [])
+
+  const toggleSkillMilestone = useCallback((skillId: string, msId: string) => {
+    setState((prev) => {
+      const sk = prev.skills.find((s) => s.id === skillId)
+      if (!sk) return prev
+      const ms = sk.milestones.find((m) => m.id === msId)
+      if (!ms) return prev
+      const wasDone = ms.done
+      const deltaXP = wasDone ? -ms.xp : ms.xp
+      const milestones = sk.milestones.map((m) =>
+        m.id === msId ? { ...m, done: !m.done } : m,
+      )
+      const nextSk = syncSkillProgress({ ...sk, milestones })
+      const skills = prev.skills.map((s) => (s.id === skillId ? nextSk : s))
+      return {
+        ...prev,
+        skills,
+        totalXP: Math.max(0, prev.totalXP + deltaXP),
+        skillXP: Math.max(0, prev.skillXP + deltaXP),
+      }
+    })
+  }, [])
+
+  const logSkillStudy = useCallback((id: string, hours: number) => {
+    if (hours <= 0 || Number.isNaN(hours)) return
+    const xpGain = Math.round(hours * 8)
+    setState((prev) => ({
+      ...prev,
+      skills: prev.skills.map((sk) =>
+        sk.id === id
+          ? {
+              ...sk,
+              hours: (sk.hours || 0) + hours,
+              sessions: (sk.sessions || 0) + 1,
+              lastStudied: new Date().toISOString(),
+            }
+          : sk,
+      ),
+      totalXP: prev.totalXP + xpGain,
+      skillXP: prev.skillXP + xpGain,
+    }))
+  }, [])
 
   const value = useMemo(
     () => ({
@@ -229,6 +442,16 @@ export function StreakProvider({ children }: { children: ReactNode }) {
       dismissRescue,
       resetAll,
       exportJson,
+      saveBook,
+      deleteBook,
+      logBookPages,
+      startReadingBook,
+      finishBook,
+      saveProject,
+      logProjectSession,
+      saveSkill,
+      toggleSkillMilestone,
+      logSkillStudy,
     }),
     [
       state,
@@ -245,6 +468,16 @@ export function StreakProvider({ children }: { children: ReactNode }) {
       dismissRescue,
       resetAll,
       exportJson,
+      saveBook,
+      deleteBook,
+      logBookPages,
+      startReadingBook,
+      finishBook,
+      saveProject,
+      logProjectSession,
+      saveSkill,
+      toggleSkillMilestone,
+      logSkillStudy,
     ],
   )
 

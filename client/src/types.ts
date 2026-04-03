@@ -33,6 +33,64 @@ export interface ReviewEntry {
   date: string
 }
 
+export type BookStatus = 'queued' | 'reading' | 'paused' | 'done'
+
+export interface ReadingBook {
+  id: string
+  title: string
+  author: string
+  pages: number
+  pagesRead: number
+  status: BookStatus
+  icon: string
+  color: string
+  notes?: string
+  lastRead: string | null
+  startedAt?: string
+  finishedAt?: string
+}
+
+export type ProjectStatus = 'ideation' | 'building' | 'paused' | 'shipped' | 'archived'
+
+export interface SideProject {
+  id: string
+  name: string
+  desc: string
+  status: ProjectStatus
+  icon: string
+  color: string
+  tech: string[]
+  repo?: string
+  hours: number
+  progress: number
+  sessions: number
+  goalHours: number
+  lastWorked: string | null
+}
+
+export type SkillLevelId = 'queued' | 'exploring' | 'learning' | 'proficient'
+
+export interface SkillMilestone {
+  id: string
+  text: string
+  xp: number
+  done: boolean
+}
+
+export interface SkillRoadmapItem {
+  id: string
+  name: string
+  category: string
+  level: SkillLevelId
+  icon: string
+  goal: string
+  milestones: SkillMilestone[]
+  progress: number
+  hours: number
+  sessions: number
+  lastStudied: string | null
+}
+
 export interface AppState {
   checkedHabits: string[]
   checkedRoutine: string[]
@@ -52,6 +110,10 @@ export interface AppState {
   rescueDone: string[]
   rescueDismissed: boolean
   lastDate: string
+  books: ReadingBook[]
+  projects: SideProject[]
+  skills: SkillRoadmapItem[]
+  skillXP: number
 }
 
 export type ScreenId =
@@ -63,3 +125,6 @@ export type ScreenId =
   | 'energy'
   | 'review'
   | 'profile'
+  | 'reading'
+  | 'projects'
+  | 'skills'

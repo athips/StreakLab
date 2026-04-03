@@ -34,6 +34,9 @@ const SCREEN_INFO: Record<ScreenId, { title: string; vibe: string }> = {
   energy: { title: 'Energy Lab', vibe: 'See what habits lift your output.' },
   review: { title: 'Weekly Debrief', vibe: 'Close loops and set your next sprint.' },
   profile: { title: 'Pilot Profile', vibe: 'Tune your identity and system settings.' },
+  reading: { title: 'Reading List', vibe: 'Track books, pages, and reading streaks.' },
+  projects: { title: 'Side Projects', vibe: 'Ship ideas with hours and completion.' },
+  skills: { title: 'Skill Roadmap', vibe: 'Milestones and study sessions that feed XP.' },
 }
 
 function DesktopCompanion({ screen }: { screen: ScreenId }) {
